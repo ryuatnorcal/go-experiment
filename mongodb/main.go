@@ -14,6 +14,22 @@ import (
 )
 
 func main() {
+	client, err := connection()
+	getData(client, err)
+	insertData(client, err)
+	updateData(client, err)
+	deleteData(client, err)
+	endConnection(client)
+
+}
+func endConnection(client *mongo.Client) {
+	defer func() {
+		if err := client.Disconnect(context.TODO()); err != nil {
+			panic(err)
+		}
+	}()
+}
+func connection() (*mongo.Client, error) {
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found")
 	}
@@ -31,11 +47,9 @@ func main() {
 		panic(err)
 	}
 
-	defer func() {
-		if err := client.Disconnect(context.TODO()); err != nil {
-			panic(err)
-		}
-	}()
+	return client, err
+}
+func getData(client *mongo.Client, err error) {
 
 	coll := client.Database("go-mongo").Collection("movies")
 	title := "Breaking Bad"
@@ -56,4 +70,42 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("%s\n", jsonData)
+}
+func insertData(client *mongo.Client, err error) {
+	coll := client.Database("go-mongo").Collection("movies")
+	result, err := coll.InsertOne(context.TODO(), bson.D{
+		{"Title", "The Matrix"},
+		{"Year", "1999"},
+		{"Runtime", "136 min"},
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Inserted a single document: %v\n", result.InsertedID)
+}
+
+func updateData(client *mongo.Client, err error) {
+	coll := client.Database("go-mongo").Collection("movies")
+	result, err := coll.UpdateOne(
+		context.TODO(),
+		bson.D{{"Title", "The Matrix"}},
+		bson.D{
+			{"$set", bson.D{{"Year", "xxxx"}}},
+		})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Matched %v documents and updated %v documents.\n %v", result.MatchedCount, result.ModifiedCount)
+}
+
+func deleteData(client *mongo.Client, err error) {
+	coll := client.Database("go-mongo").Collection("movies")
+	result, err := coll.DeleteOne(
+		context.TODO(),
+		bson.D{{"Title", "The Matrix"}},
+	)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Deleted %v document(s)\n", result.DeletedCount)
 }
